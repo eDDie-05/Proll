@@ -1,0 +1,11 @@
+.git
+.env
+backend/.venv
+backend/media
+backend/staticfiles
+**/__pycache__
+frontend/node_modules
+frontend/dist
+backups
+docker/nginx/certs
+docker/backup/rclone/rclone.conf
