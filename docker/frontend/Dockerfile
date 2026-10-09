@@ -1,12 +1,15 @@
-# Builds the React app, then copies the static bundle into the shared volume served by nginx.
-FROM node:24-alpine AS build
+FROM node:24-alpine AS dependencies
 WORKDIR /app
 COPY frontend/package.json frontend/package-lock.json ./
 RUN npm ci
-COPY frontend/ .
+
+FROM dependencies AS build
+COPY frontend/ ./
 RUN npm run build
 
-FROM alpine:3.20
-COPY --from=build /app/dist /dist
-# Replace the published bundle atomically-ish on each deploy, then exit.
-CMD ["sh", "-c", "rm -rf /srv/frontend/* && cp -r /dist/. /srv/frontend/ && echo 'Frontend published.'"]
+FROM nginx:1.27-alpine AS runtime
+COPY --from=build /app/dist /usr/share/nginx/html
+COPY docker/frontend/nginx.conf /etc/nginx/conf.d/default.conf
+RUN printf 'server_tokens off;\n' > /etc/nginx/conf.d/security.conf
+EXPOSE 80
+HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 CMD wget -q --spider http://127.0.0.1/ || exit 1

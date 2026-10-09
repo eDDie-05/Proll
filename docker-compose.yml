@@ -1,5 +1,5 @@
 # Bravado Company Ltd - Payroll Management System
-# Usage: cp .env.example .env  (fill in secrets)  &&  docker compose up -d --build
+# Usage: cp .env.example .env && docker compose up --pull always -d --build
 
 services:
   postgres:
@@ -16,6 +16,7 @@ services:
       interval: 10s
       timeout: 5s
       retries: 10
+      start_period: 10s
     networks: [internal]
 
   backend:
@@ -25,18 +26,30 @@ services:
     environment:
       DATABASE_URL: postgres://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}
       DJANGO_MEDIA_ROOT: /app/media
+      DJANGO_ALLOWED_HOSTS: ${DJANGO_ALLOWED_HOSTS:-localhost,127.0.0.1},backend
     volumes:
       - static_files:/app/staticfiles
       - media_files:/app/media
     depends_on:
       postgres: { condition: service_healthy }
+    healthcheck:
+      test: ["CMD", "python", "-c", "import socket; socket.create_connection(('127.0.0.1', 8000), 3).close()"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
     networks: [internal]
 
   frontend:
     build: { context: ., dockerfile: docker/frontend/Dockerfile }
-    volumes:
-      - frontend_dist:/srv/frontend
-    restart: "no"
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q --spider http://127.0.0.1/ || exit 1"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 5s
+    networks: [internal]
 
   nginx:
     image: nginx:1.27-alpine
@@ -49,12 +62,17 @@ services:
       - ./docker/nginx/proxy_params.conf:/etc/nginx/proxy_params.conf:ro
       - ${TLS_CERT_DIR:-./docker/nginx/certs}:/etc/nginx/certs:ro
       - certbot_www:/var/www/certbot:ro
-      - frontend_dist:/srv/frontend:ro
       - static_files:/srv/static:ro
       - media_files:/srv/media:ro
     depends_on:
-      backend: { condition: service_started }
-      frontend: { condition: service_completed_successfully }
+      backend: { condition: service_healthy }
+      frontend: { condition: service_healthy }
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q --spider http://127.0.0.1/ || exit 1"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
     networks: [internal]
 
   backup:
@@ -83,7 +101,6 @@ volumes:
   postgres_data:
   static_files:
   media_files:
-  frontend_dist:
   certbot_www:
 
 networks:
