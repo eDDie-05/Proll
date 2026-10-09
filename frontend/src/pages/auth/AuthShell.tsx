@@ -5,11 +5,7 @@ export function AuthShell({ title, children }: { title: string; children: ReactN
     <div className="flex min-h-screen items-center justify-center bg-gradient-to-br from-brand-800 via-brand-700 to-brand-900 p-4">
       <div className="w-full max-w-md">
         <div className="mb-6 flex items-center justify-center gap-3 text-white">
-          <img
-  src="/logo.svg"
-  alt="Bravado Company Ltd logo"
-  className="h-12 w-12 object-contain"
-/>
+          <img src="/logo.svg" alt="Bravado Company Ltd logo" className="h-12 w-12 object-contain"/>
           <div>
             <p className="text-lg font-bold leading-tight">Bravado Company Ltd</p>
             <p className="text-sm text-brand-200">Payroll Management System</p>
