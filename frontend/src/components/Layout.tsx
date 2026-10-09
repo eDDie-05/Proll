@@ -83,7 +83,7 @@ function Sidebar({ onNavigate }: { onNavigate?: () => void }) {
   return (
     <nav className="flex h-full flex-col overflow-y-auto bg-brand-800 px-3 py-4 text-brand-100" aria-label="Main navigation">
       <div className="mb-6 flex items-center gap-2 px-2">
-        <img src="/bravado-logo.svg" alt="Bravado Company Ltd logo" className="h-12 w-12 object-contain"/>
+        <img src="/logo.svg" alt="Bravado Company Ltd logo" width={48} height={48} className="object-contain"/>
         <div className="leading-tight">
           <p className="text-sm font-bold text-white">Bravado Company Ltd</p>
           <p className="text-xs text-brand-200">Payroll Management</p>

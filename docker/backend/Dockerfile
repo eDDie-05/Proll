@@ -1,36 +1,37 @@
 FROM python:3.12-slim AS builder
 
-ENV PIP_DISABLE_PIP_VERSION_CHECK=1 \
-    PIP_NO_CACHE_DIR=1 \
-    PYTHONDONTWRITEBYTECODE=1
+ENV PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONUNBUFFERED=1 \
+    PIP_DISABLE_PIP_VERSION_CHECK=1
 
 WORKDIR /build
 RUN python -m venv /opt/venv
 ENV PATH="/opt/venv/bin:$PATH"
-COPY backend/requirements.txt ./
-RUN pip install --upgrade pip && pip install -r requirements.txt
+COPY backend/requirements.txt .
+RUN pip install --no-cache-dir --upgrade pip \
+    && pip install --no-cache-dir -r requirements.txt
 
 FROM python:3.12-slim AS runtime
 
-ENV PATH="/opt/venv/bin:$PATH" \
-    PYTHONDONTWRITEBYTECODE=1 \
+ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
-    PIP_NO_CACHE_DIR=1
+    PATH="/opt/venv/bin:$PATH" \
+    PYTHONPATH=/app \
+    DJANGO_SETTINGS_MODULE=config.settings
 
 RUN apt-get update \
-    && apt-get install -y --no-install-recommends libpq5 postgresql-client \
+    && apt-get install --no-install-recommends --yes gosu \
     && rm -rf /var/lib/apt/lists/* \
-    && useradd --create-home --uid 10001 --shell /usr/sbin/nologin app
-
+    && groupadd --system app && useradd --system --gid app --home-dir /app --create-home app
 WORKDIR /app
 COPY --from=builder /opt/venv /opt/venv
-COPY backend/ ./
-COPY docker/backend/entrypoint.sh /entrypoint.sh
-RUN chmod 0555 /entrypoint.sh \
+COPY backend/ /app/
+COPY docker/backend/entrypoint.sh /usr/local/bin/entrypoint.sh
+RUN chmod +x /usr/local/bin/entrypoint.sh \
     && mkdir -p /app/staticfiles /app/media \
     && chown -R app:app /app
 
-USER app
+USER root
 EXPOSE 8000
-ENTRYPOINT ["/entrypoint.sh"]
-CMD ["gunicorn", "config.wsgi:application", "--bind", "0.0.0.0:8000", "--workers", "3", "--timeout", "120", "--access-logfile", "-"]
+ENTRYPOINT ["/usr/local/bin/entrypoint.sh"]
+CMD ["gunicorn", "config.wsgi:application", "--bind", "0.0.0.0:8000", "--workers", "3", "--timeout", "120", "--access-logfile", "-", "--error-logfile", "-"]
